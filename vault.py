@@ -19,7 +19,10 @@ def append_to_inbox(text: str) -> bool:
     try:
         file = _repo.get_contents(path)
         current = file.decoded_content.decode("utf-8")
-        new_content = current.rstrip() + f"\n- {text}\n"
+        if "## Unsorted" in current:
+            new_content = current.replace("## Unsorted\n_Raw captures — dump here first_\n", f"## Unsorted\n_Raw captures — dump here first_\n\n- {text}\n", 1)
+        else:
+            new_content = current.rstrip() + f"\n- {text}\n"
         _repo.update_file(path, "iris: add to inbox", new_content, file.sha)
         return True
     except GithubException:
