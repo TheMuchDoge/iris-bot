@@ -20,7 +20,23 @@ def append_to_inbox(text: str) -> bool:
         file = _repo.get_contents(path)
         current = file.decoded_content.decode("utf-8")
         new_content = current.rstrip() + f"\n- {text}\n"
-        _repo.update_file(path, f"iris: add to inbox", new_content, file.sha)
+        _repo.update_file(path, "iris: add to inbox", new_content, file.sha)
+        return True
+    except GithubException:
+        return False
+
+
+def add_task_to_daily(task: str) -> bool:
+    today = date.today().strftime("%Y-%m-%d")
+    path = f"Daily/{today}.md"
+    try:
+        file = _repo.get_contents(path)
+        current = file.decoded_content.decode("utf-8")
+        if "## Tasks" in current:
+            new_content = current.replace("## Tasks\n", f"## Tasks\n- [ ] {task}\n", 1)
+        else:
+            new_content = current + f"\n- [ ] {task}\n"
+        _repo.update_file(path, "iris: add task", new_content, file.sha)
         return True
     except GithubException:
         return False

@@ -31,7 +31,7 @@ async def webhook(request: Request):
     if not text:
         return {"ok": True}
 
-    reply = ask_iris(text)
+    reply = ask_iris(user_id, text)
     await send_message(chat_id, reply)
 
     return {"ok": True}
