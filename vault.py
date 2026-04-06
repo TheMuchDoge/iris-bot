@@ -45,6 +45,56 @@ def add_task_to_daily(task: str) -> bool:
         return False
 
 
+def mark_tasks_completed(items: list[str]) -> tuple[int, int]:
+    """Check off matching tasks or add new completed ones. Returns (matched, added)."""
+    today = date.today().strftime("%Y-%m-%d")
+    path = f"Daily/{today}.md"
+    try:
+        file = _repo.get_contents(path)
+        current = file.decoded_content.decode("utf-8")
+        lines = current.split("\n")
+        matched = 0
+        to_add = []
+
+        for item in items:
+            item = item.strip()
+            if not item:
+                continue
+            found = False
+            for i, line in enumerate(lines):
+                if line.startswith("- [ ]") and item.lower() in line.lower():
+                    lines[i] = line.replace("- [ ]", "- [x]", 1)
+                    matched += 1
+                    found = True
+                    break
+            if not found:
+                to_add.append(item)
+
+        if to_add:
+            in_tasks = False
+            last_task_idx = -1
+            tasks_header_idx = -1
+            for i, line in enumerate(lines):
+                if line.strip() == "## Tasks":
+                    in_tasks = True
+                    tasks_header_idx = i
+                elif in_tasks:
+                    if line.startswith("- ["):
+                        last_task_idx = i
+                    elif line.startswith("---") or (line.startswith("##") and line.strip() != "## Tasks"):
+                        break
+
+            insert_at = last_task_idx + 1 if last_task_idx >= 0 else (tasks_header_idx + 1 if tasks_header_idx >= 0 else len(lines))
+            for j, a in enumerate(to_add):
+                lines.insert(insert_at + j, f"- [x] {a}")
+
+        new_content = "\n".join(lines)
+        _repo.update_file(path, "iris: mark tasks completed", new_content, file.sha)
+        return matched, len(to_add)
+    except GithubException:
+        return 0, 0
+
+
 def get_vault_context() -> str:
     today = date.today().strftime("%Y-%m-%d")
     files = {

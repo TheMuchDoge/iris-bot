@@ -1,6 +1,6 @@
 import anthropic
 from config import CLAUDE_API_KEY
-from vault import get_vault_context, append_to_inbox, add_task_to_daily
+from vault import get_vault_context, append_to_inbox, add_task_to_daily, mark_tasks_completed
 from system_prompt import SYSTEM_PROMPT
 
 _client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
@@ -25,6 +25,17 @@ def _add_to_history(user_id: int, role: str, content: str) -> None:
 # Write triggers — handled in code before Claude sees the message
 _TASK_TRIGGERS = ("add task:", "legg til oppgave:")
 _INBOX_TRIGGERS = ("add idea:", "add to inbox:", "note that", "jot down", "legg til:", "skriv at")
+_COMPLETED_TRIGGERS = ("completed:", "done:", "ferdig:", "fullført:")
+
+
+def _parse_list(text: str) -> list[str]:
+    """Parse comma or newline separated list, stripping bullet characters."""
+    items = []
+    for part in text.replace(",", "\n").split("\n"):
+        part = part.strip().lstrip("-•*").strip()
+        if part:
+            items.append(part)
+    return items
 
 
 def _check_write(text: str) -> tuple[str, str] | None:
@@ -36,6 +47,9 @@ def _check_write(text: str) -> tuple[str, str] | None:
     for trigger in _INBOX_TRIGGERS:
         if lower.startswith(trigger):
             return "inbox", text[len(trigger):].strip()
+    for trigger in _COMPLETED_TRIGGERS:
+        if lower.startswith(trigger):
+            return "completed", text[len(trigger):].strip()
     return None
 
 
@@ -47,6 +61,19 @@ def ask_iris(user_id: int, user_message: str) -> str:
         if action == "task":
             success = add_task_to_daily(content)
             reply = f'Done. Added to today\'s tasks: "{content}"' if success else "Couldn't write to your vault right now."
+        elif action == "completed":
+            items = _parse_list(content)
+            matched, added = mark_tasks_completed(items)
+            total = matched + added
+            if total == 0:
+                reply = "Couldn't write to your vault right now."
+            else:
+                parts = []
+                if matched:
+                    parts.append(f"{matched} checked off")
+                if added:
+                    parts.append(f"{added} logged as done")
+                reply = f"Got it. {', '.join(parts)} in today's tasks."
         else:
             success = append_to_inbox(content)
             reply = f'Got it. Added to your Inbox: "{content}"' if success else "Couldn't write to your vault right now."
