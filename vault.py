@@ -35,7 +35,9 @@ def add_task_to_daily(task: str) -> bool:
     try:
         file = _repo.get_contents(path)
         current = file.decoded_content.decode("utf-8")
-        if "## Tasks" in current:
+        if "### Today" in current:
+            new_content = current.replace("### Today\n", f"### Today\n- [ ] {task}\n", 1)
+        elif "## Tasks" in current:
             new_content = current.replace("## Tasks\n", f"## Tasks\n- [ ] {task}\n", 1)
         else:
             new_content = current + f"\n- [ ] {task}\n"
